@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { worldState } from "@/lib/worldStore";
 import { sound } from "@/lib/sound";
 import { ZONES, INTERACT_RADIUS, WORLD_SIZE, Zone } from "@/components/zones";
+import Multiplayer from "@/components/Multiplayer";
 
 const SPEED = 13;
 const CART_SPEED = 26;
@@ -1606,6 +1607,7 @@ function SceneContents({
       <ProximitySensor onNear={onNear} />
       <Combat ref={combatRef} />
       <EnemyShots />
+      <Multiplayer />
       <MouseLook
         active={active}
         onZoneClick={onZoneClick}
