@@ -1,26 +1,264 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #1e1640;
+  --bg-2: #2a2054;
+  --cyan: #7cf3c8;
+  --purple: #c77dff;
+  --blue: #6ec6ff;
+  --orange: #ffb703;
+  --text: #f2ecff;
+  --dim: #b7a9d9;
+  --glass: rgba(42, 30, 80, 0.72);
+  --glass-border: rgba(199, 125, 255, 0.35);
+  --font-display: var(--font-orbitron), sans-serif;
+  --font-body: var(--font-rajdhani), sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: auto;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow: hidden;
 }
+
+/* Sections rendered inside a panel overlay shouldn't be full-screen */
+.panel-body section {
+  min-height: unset !important;
+  padding: 2.25rem 1.25rem !important;
+}
+
+::selection {
+  background: rgba(124, 243, 200, 0.35);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #05070f;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--cyan), var(--purple));
+  border-radius: 3px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* ---------- Glass panels ---------- */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 12px;
+  position: relative;
+}
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(124, 243, 200, 0.08) 0%,
+    transparent 40%,
+    rgba(168, 85, 247, 0.06) 100%
+  );
+  pointer-events: none;
+}
+
+/* Clipped corner "game UI" panel */
+.panel-clip {
+  clip-path: polygon(
+    16px 0,
+    100% 0,
+    100% calc(100% - 16px),
+    calc(100% - 16px) 100%,
+    0 100%,
+    0 16px
+  );
+}
+
+/* ---------- Neon text ---------- */
+.neon-cyan {
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(124, 243, 200, 0.7), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.neon-purple {
+  color: var(--purple);
+  text-shadow: 0 0 10px rgba(199, 125, 255, 0.7), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.neon-orange {
+  color: var(--orange);
+  text-shadow: 0 0 10px rgba(255, 183, 3, 0.7), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, var(--cyan), var(--blue), var(--purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Scanlines / CRT overlay ---------- */
+.scanlines {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(124, 243, 200, 0.012) 3px,
+    rgba(0, 0, 0, 0.05) 4px
+  );
+  mix-blend-mode: overlay;
+}
+.vignette {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 89;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgba(2, 4, 10, 0.55) 100%
+  );
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.6; }
+  94% { opacity: 1; }
+  97% { opacity: 0.8; }
+}
+.flicker {
+  animation: flicker 6s infinite;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+.floaty {
+  animation: floaty 5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(124, 243, 200, 0.25); }
+  50% { box-shadow: 0 0 28px rgba(124, 243, 200, 0.55); }
+}
+.pulse-glow {
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animated-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+@keyframes dash-flow {
+  to { stroke-dashoffset: -40; }
+}
+.dash-flow {
+  stroke-dasharray: 6 6;
+  animation: dash-flow 1.2s linear infinite;
+}
+
+@keyframes rotate-slow {
+  to { transform: rotate(360deg); }
+}
+.rotate-slow {
+  animation: rotate-slow 14s linear infinite;
+}
+
+/* Holo sheen sweeping across cards */
+@keyframes holo-sweep {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  100% { transform: translateX(250%) skewX(-20deg); }
+}
+.holo-sweep::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(124, 243, 200, 0.08),
+    transparent
+  );
+  animation: holo-sweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Buttons */
+.btn-game {
+  font-family: var(--font-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  background: rgba(124, 243, 200, 0.06);
+  padding: 0.9rem 2.6rem;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: color 0.25s, background 0.25s, box-shadow 0.25s, transform 0.15s;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+.btn-game:hover {
+  background: rgba(124, 243, 200, 0.18);
+  box-shadow: 0 0 24px rgba(124, 243, 200, 0.5), inset 0 0 18px rgba(124, 243, 200, 0.15);
+  transform: translateY(-1px);
+}
+.btn-game:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
