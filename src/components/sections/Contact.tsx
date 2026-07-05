@@ -8,7 +8,7 @@ import { SectionShell, SectionHeader, GameButton } from "@/components/ui";
 const TERMINAL_SCRIPT = [
   "> establishing secure uplink...",
   "> handshake complete. channel encrypted.",
-  "> operator: SANTOSH_KC [ONLINE]",
+  "> operator: ANEESKIE [ONLINE]",
   "> status: OPEN FOR MISSIONS",
   "> response time: < 24 hours",
   "> awaiting transmission_",
@@ -77,7 +77,7 @@ export default function Contact() {
           <span className="h-3 w-3 rounded-full bg-yellow-500/70" />
           <span className="h-3 w-3 rounded-full bg-green-500/70" />
           <span className="ml-3 font-display text-[10px] tracking-[0.3em] text-[var(--dim)]">
-            SKC://COMMS_TERMINAL — v3.7.1
+            AM://COMMS_TERMINAL — v3.7.1
           </span>
         </div>
 
@@ -97,7 +97,8 @@ export default function Contact() {
             {[
               ["LINKEDIN", CONTACT.linkedin],
               ["GITHUB", CONTACT.github],
-              ["WHATSAPP", CONTACT.whatsapp],
+              ["FIVERR", CONTACT.fiverr],
+              ["INSTAGRAM", CONTACT.instagram],
               ["EMAIL", `mailto:${CONTACT.email}`],
             ].map(([label, href]) => (
               <a
@@ -119,7 +120,7 @@ export default function Contact() {
           ACHIEVEMENT UNLOCKED 🏆 — EXPLORED THE ENTIRE COMMAND CENTER
         </div>
         <div className="mt-3 text-xs text-[var(--dim)]/60">
-          © {new Date().getFullYear()} Santosh KC — Built with Next.js, Three.js & far too much neon.
+          © {new Date().getFullYear()} Anees Muhammad — Built with Next.js, Three.js & far too much neon.
         </div>
       </div>
     </SectionShell>

@@ -100,12 +100,21 @@ export default function Hud({
 }) {
   const [muted, setMuted] = useState(false);
   const [gems, setGems] = useState(worldState.gems);
+  const [playerHP, setPlayerHP] = useState(worldState.playerMaxHP);
   const [showControls, setShowControls] = useState(false);
 
   useEffect(() => {
     const onGem = (e: Event) => setGems((e as CustomEvent).detail as number);
+    const onHit = (e: Event) => setPlayerHP((e as CustomEvent).detail as number);
+    const onDied = () => setPlayerHP(worldState.playerMaxHP);
     window.addEventListener("gem-collected", onGem);
-    return () => window.removeEventListener("gem-collected", onGem);
+    window.addEventListener("player-hit", onHit);
+    window.addEventListener("player-died", onDied);
+    return () => {
+      window.removeEventListener("gem-collected", onGem);
+      window.removeEventListener("player-hit", onHit);
+      window.removeEventListener("player-died", onDied);
+    };
   }, []);
 
   return (
@@ -115,47 +124,67 @@ export default function Hud({
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6, duration: 0.8 }}
-        className="fixed top-0 left-0 right-0 z-[70] flex items-center justify-between px-4 md:px-6 py-3 pointer-events-none"
+        className="fixed top-0 left-0 right-0 z-[70] pointer-events-none"
       >
-        <div className="glass panel-clip px-4 py-2 font-display text-xs md:text-sm font-bold tracking-[0.25em] text-white pointer-events-auto">
-          ⚔️ SKC<span className="text-[var(--purple)]">//</span>QUEST
-        </div>
-        {/* vertical stack so chips never overlap each other */}
-        <div className="flex flex-col items-end gap-2 pointer-events-auto">
-          <div className="flex items-center gap-2">
-            <div className="glass panel-clip px-4 py-2 font-display text-[11px] tracking-[0.2em] text-[var(--orange)]">
-              💎 {gems} / 24
-            </div>
-            <button
-              onClick={() => {
-                const next = !muted;
-                setMuted(next);
-                sound.setEnabled(!next);
-                if (!next) sound.click();
-              }}
-              onMouseEnter={() => sound.hover()}
-              className="glass panel-clip px-4 py-2 font-display text-[10px] tracking-[0.2em] text-[var(--dim)] hover:text-white transition-colors"
-            >
-              {muted ? "🔇 OFF" : "🔊 ON"}
-            </button>
+        {/* ── Desktop: single row ── */}
+        <div className="hidden md:flex items-center justify-between px-6 py-3">
+          <div className="glass panel-clip px-4 py-2 font-display text-sm font-bold tracking-[0.25em] text-white pointer-events-auto">
+            ⚔️ AM<span className="text-[var(--purple)]">//</span>QUEST
           </div>
-          {near && (
-            <div
-              className="hidden md:block glass panel-clip px-4 py-2 font-display text-[10px] tracking-[0.25em]"
-              style={{ color: near.color }}
-            >
-              📍 {near.label.toUpperCase()}
+          <div className="flex flex-col items-end gap-2 pointer-events-auto">
+            <div className="glass panel-clip px-3 py-1.5 flex items-center gap-2">
+              <span className="font-display text-[10px] text-red-400">❤</span>
+              <div className="w-36 h-3 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${(playerHP / worldState.playerMaxHP) * 100}%`, background: playerHP > 5 ? "#4ade80" : playerHP > 2 ? "#ffd166" : "#ff3355" }} />
+              </div>
+              <span className="font-display text-[9px] text-white/70">{playerHP}/{worldState.playerMaxHP}</span>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <div className="glass panel-clip px-4 py-2 font-display text-[11px] tracking-[0.2em] text-[var(--orange)]">💎 {gems} / 24</div>
+              <button onClick={() => { const n = !muted; setMuted(n); sound.setEnabled(!n); if (!n) sound.click(); }}
+                onMouseEnter={() => sound.hover()}
+                className="glass panel-clip px-4 py-2 font-display text-[10px] tracking-[0.2em] text-[var(--dim)] hover:text-white transition-colors pointer-events-auto">
+                {muted ? "🔇 OFF" : "🔊 ON"}
+              </button>
+            </div>
+            {near && <div className="glass panel-clip px-4 py-2 font-display text-[10px] tracking-[0.25em]" style={{ color: near.color }}>📍 {near.label.toUpperCase()}</div>}
+          </div>
+        </div>
+
+        {/* ── Mobile: two-row layout ── */}
+        <div className="flex md:hidden flex-col gap-1.5 px-3 pt-3 pointer-events-auto">
+          {/* Row 1: title left | gems + sound right */}
+          <div className="flex items-center justify-between">
+            <div className="glass panel-clip px-3 py-1.5 font-display text-[11px] font-bold tracking-[0.2em] text-white">
+              ⚔️ AM<span className="text-[var(--purple)]">//</span>QUEST
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="glass panel-clip px-3 py-1.5 font-display text-[10px] tracking-[0.15em] text-[var(--orange)]">💎 {gems}/24</div>
+              <button onClick={() => { const n = !muted; setMuted(n); sound.setEnabled(!n); if (!n) sound.click(); }}
+                className="glass panel-clip px-3 py-1.5 font-display text-[9px] tracking-[0.15em] text-[var(--dim)]">
+                {muted ? "🔇" : "🔊"}
+              </button>
+            </div>
+          </div>
+          {/* Row 2: full-width HP bar */}
+          <div className="glass panel-clip px-3 py-1.5 flex items-center gap-2">
+            <span className="font-display text-[10px] text-red-400">❤</span>
+            <div className="flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${(playerHP / worldState.playerMaxHP) * 100}%`, background: playerHP > 5 ? "#4ade80" : playerHP > 2 ? "#ffd166" : "#ff3355" }} />
+            </div>
+            <span className="font-display text-[9px] text-white/70">{playerHP}/{worldState.playerMaxHP}</span>
+          </div>
         </div>
       </motion.header>
 
-      {/* minimap — bottom right */}
+      {/* minimap — hidden on mobile (buttons would overlap), shown on md+ */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 1, duration: 0.6 }}
-        className="fixed bottom-4 right-4 z-[70]"
+        className="fixed bottom-4 right-4 z-[70] hidden md:block"
       >
         <Minimap onNav={onNav} />
       </motion.div>
@@ -165,7 +194,7 @@ export default function Hud({
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.2, duration: 0.6 }}
-        className="fixed bottom-4 left-4 z-[70] hidden sm:block"
+        className="fixed bottom-4 left-4 z-[70] hidden md:block"
       >
         <button
           onClick={() => setShowControls((v) => !v)}
@@ -185,9 +214,10 @@ export default function Hud({
             <div className="font-display text-[9px] tracking-[0.3em] text-[var(--dim)] mb-2">CONTROLS</div>
             <div className="space-y-1 text-xs text-white/85">
               <div><Key>W A S D</Key> move &nbsp; <Key>SPACE</Key> jump</div>
-              <div><Key>CLICK</Key> to enable mouse-look &amp; move</div>
+              <div><Key>CLICK</Key> lock mouse · aim fireball · fire</div>
               <div>drag mouse to rotate camera &nbsp; <Key>ESC</Key> release</div>
-              <div><Key>E</Key> interact &nbsp; <Key>ESC</Key> close panel</div>
+              <div><Key>E</Key> interact with cart/zone &nbsp; <Key>ESC</Key> close</div>
+              <div>🔒 shoot crystals 10× to unlock zones</div>
             </div>
           </motion.div>
         )}

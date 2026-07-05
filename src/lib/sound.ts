@@ -71,6 +71,13 @@ class SoundEngine {
     this.tone(440, 0.6, "sine", 0.08, 880);
   }
 
+  damage() {
+    // low thud + descending crunch — "you got hit"
+    this.tone(140, 0.18, "sawtooth", 0.22, 60);
+    this.tone(80,  0.28, "square",   0.18, 40);
+    this.tone(320, 0.10, "sine",     0.10, 200);
+  }
+
   private startAmbient() {
     const ctx = this.ensure();
     if (!ctx || !this.master || this.ambientNodes.length) return;

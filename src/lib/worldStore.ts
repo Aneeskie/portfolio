@@ -3,7 +3,7 @@
 /** Mutable per-frame state shared between the 3D world and the DOM HUD. */
 export const worldState = {
   x: 0,
-  z: 20,
+  z: 38,
   /** facing angle of the character */
   rot: 0,
   /** camera orbit yaw (mouse look) */
@@ -28,4 +28,11 @@ export const worldState = {
   gemTaken: [] as boolean[],
   /** ms timestamp (performance.now) a zone crystal was last hit by a fireball */
   hitZones: {} as Record<string, number>,
+  /** zones unlocked by destroying their crystal with a fireball */
+  unlockedZones: new Set<string>(),
+  /** remaining HP per zone (10 = full, 0 = unlocked) */
+  zoneHP: {} as Record<string, number>,
+  /** player health */
+  playerHP: 10,
+  playerMaxHP: 10,
 };

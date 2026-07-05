@@ -23,7 +23,7 @@ export default function Timeline() {
             const left = i % 2 === 0;
             return (
               <motion.div
-                key={t.place}
+                key={i}
                 initial={{ opacity: 0, x: left ? -60 : 60 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: "-80px" }}

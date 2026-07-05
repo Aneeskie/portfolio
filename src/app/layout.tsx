@@ -15,9 +15,9 @@ const rajdhani = Rajdhani({
 });
 
 export const metadata: Metadata = {
-  title: "Santosh KC — Unity Game Developer",
+  title: "Anees Muhammad — Unity Game Developer",
   description:
-    "Interactive game-style portfolio of Santosh KC, Unity Game Developer. Multiplayer, LiveOps, mobile & backend integration. Explore the command center.",
+    "Interactive game-style portfolio of Anees Muhammad (Aneeskie), Unity Game Developer. 50+ mobile games, multiplayer, Photon, Firebase, PlayFab. Explore the command center.",
 };
 
 export default function RootLayout({

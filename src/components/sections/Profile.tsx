@@ -63,8 +63,8 @@ function XPBar() {
   return (
     <div>
       <div className="flex justify-between font-display text-[10px] tracking-[0.3em] mb-1.5">
-        <span className="neon-orange">LEVEL 37 ENGINEER</span>
-        <span className="text-[var(--dim)]">XP 8,420 / 10,000</span>
+        <span className="neon-orange">LEVEL 50 GAME DEV</span>
+        <span className="text-[var(--dim)]">XP 9,200 / 10,000</span>
       </div>
       <div className="h-3 bg-white/5 panel-clip overflow-hidden border border-[var(--glass-border)]">
         <motion.div
@@ -111,7 +111,7 @@ function SkillBar({ name, pct, i }: { name: string; pct: number; i: number }) {
   );
 }
 
-const EXTRA_TAGS = ["REST APIs", "UI Toolkit", "UGUI", "Analytics", "Google Play", "App Store", "Steam"];
+const EXTRA_TAGS = ["Google Play", "AdMob", "Unity Ads", "UGUI", "Analytics", "Photon", "PlayFab", "Firebase"];
 
 export default function Profile() {
   return (
@@ -131,7 +131,7 @@ export default function Profile() {
             {[
               { label: "PROJECTS", value: 50, suffix: "+" },
               { label: "YEARS EXP", value: 3, suffix: "+" },
-              { label: "COUNTRIES", value: 3, suffix: "" },
+              { label: "FIVERR GIGS", value: 50, suffix: "+" },
             ].map((s) => (
               <div key={s.label} className="glass panel-clip p-4 text-center holo-sweep overflow-hidden">
                 <div className="font-display text-2xl md:text-3xl font-bold neon-cyan">
@@ -144,9 +144,9 @@ export default function Profile() {
             ))}
           </div>
           <div className="glass panel-clip p-4 text-center text-sm text-[var(--dim)]">
-            🌏 Deployed in <span className="text-[var(--cyan)]">Nepal</span> →{" "}
-            <span className="text-[var(--purple)]">Japan</span> →{" "}
-            <span className="text-[var(--orange)]">Australia</span>
+            🎮 <span className="text-[var(--cyan)]">Unity</span> ·{" "}
+            <span className="text-[var(--purple)]">Multiplayer</span> ·{" "}
+            <span className="text-[var(--orange)]">Mobile</span> · Afiniti SRE Alumni
           </div>
         </motion.div>
 

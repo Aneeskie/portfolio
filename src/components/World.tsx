@@ -10,6 +10,7 @@ import { ZONES, INTERACT_RADIUS, WORLD_SIZE, Zone } from "@/components/zones";
 
 const SPEED = 13;
 const CART_SPEED = 26;
+const ZONE_MAX_HP = 10;
 
 /* ------------------------------------------------------------------ */
 /* Terrain height — value noise shared by geometry, player & props     */
@@ -32,14 +33,19 @@ function vnoise(x: number, z: number) {
 const TEMPLE = { x: 0, z: 0 };
 const GOAL = { x: 26, z: 34 };
 
+const POND_X = 28, POND_Z = -32, POND_R = 20;
+const POND_DEPTH = 3.2;
+export const POND_WATER_Y_OFFSET = POND_DEPTH * 0.52;
+
 export function getHeight(x: number, z: number) {
-  let h = vnoise(x * 0.022 + 50, z * 0.022 + 50) * 9 + vnoise(x * 0.07, z * 0.07) * 2.2;
+  // gentle rolling hills in the playfield
+  let h = vnoise(x * 0.018 + 50, z * 0.018 + 50) * 3.2 + vnoise(x * 0.055, z * 0.055) * 0.9;
   // flatten around each zone so landmarks sit on a neat plaza
   for (const zn of ZONES) {
     const d = Math.hypot(x - zn.x, z - zn.z);
     if (d < 14) {
       const t = Math.min(1, d / 14);
-      const zoneH = vnoise(zn.x * 0.022 + 50, zn.z * 0.022 + 50) * 9;
+      const zoneH = vnoise(zn.x * 0.018 + 50, zn.z * 0.018 + 50) * 3.2;
       h = h * t * t + zoneH * (1 - t * t);
     }
   }
@@ -48,13 +54,18 @@ export function getHeight(x: number, z: number) {
     const d = Math.hypot(x - TEMPLE.x, z - TEMPLE.z);
     if (d < 18) {
       const t = Math.min(1, d / 18);
-      const th = vnoise(TEMPLE.x * 0.022 + 50, TEMPLE.z * 0.022 + 50) * 9;
+      const th = vnoise(TEMPLE.x * 0.018 + 50, TEMPLE.z * 0.018 + 50) * 3.2;
       h = h * t * t + th * (1 - t * t);
     }
   }
-  // steep ring of mountains so you can never see off the island
-  const edge = Math.hypot(x, z) / (WORLD_SIZE / 2);
-  h += Math.max(0, edge - 0.72) * 85;
+  // pond bowl depression — terrain dips down so player can walk in
+  {
+    const d = Math.hypot(x - POND_X, z - POND_Z);
+    if (d < POND_R) {
+      const t = 1 - d / POND_R; // 1 at center, 0 at rim
+      h -= Math.pow(t, 1.5) * POND_DEPTH;
+    }
+  }
   return h;
 }
 
@@ -65,11 +76,20 @@ function templeHeight(x: number, z: number) {
   const dx = x - TEMPLE.x, dz = z - TEMPLE.z;
   const ax = Math.abs(dx), az = Math.abs(dz);
   if (ax > 13 || az > 13) return 0;
+  const fullH = TIER_H * TIER_SIZES.length;
   let h = 0;
   // stair ramp on the south (+z) face
-  if (ax < 2.4 && dz > 3.2 && dz < 12.5) {
-    h = ((12.5 - dz) / (12.5 - 3.2)) * TIER_H * TIER_SIZES.length;
-  }
+  if (ax < 2.4 && dz > 3.2 && dz < 12.5)
+    h = Math.max(h, ((12.5 - dz) / (12.5 - 3.2)) * fullH);
+  // stair ramp on the north (-z) face
+  if (ax < 2.4 && dz < -3.2 && dz > -12.5)
+    h = Math.max(h, ((12.5 + dz) / (12.5 - 3.2)) * fullH);
+  // stair ramp on the east (+x) face
+  if (az < 2.4 && dx > 3.2 && dx < 12.5)
+    h = Math.max(h, ((12.5 - dx) / (12.5 - 3.2)) * fullH);
+  // stair ramp on the west (-x) face
+  if (az < 2.4 && dx < -3.2 && dx > -12.5)
+    h = Math.max(h, ((12.5 + dx) / (12.5 - 3.2)) * fullH);
   // stacked tiers
   for (let k = 0; k < TIER_SIZES.length; k++) {
     if (ax < TIER_SIZES[k] && az < TIER_SIZES[k]) h = Math.max(h, TIER_H * (k + 1));
@@ -86,6 +106,39 @@ export function getGroundY(x: number, z: number) {
 
 /* ------------------------------------------------------------------ */
 /* Terrain mesh with painted vertex colors                             */
+/* ------------------------------------------------------------------ */
+/* Mountain ring — separate mesh objects encircling the flat island    */
+/* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/* Pond — water surface sitting inside the terrain bowl depression     */
+/* ------------------------------------------------------------------ */
+function Pond() {
+  const waterGeo = useMemo(() => {
+    const g = new THREE.CircleGeometry(POND_R * 0.72, 48);
+    g.rotateX(-Math.PI / 2);
+    return g;
+  }, []);
+
+  // water sits partway up the bowl so the shore is visible around it
+  const waterY = getHeight(POND_X, POND_Z) + POND_WATER_Y_OFFSET;
+
+  return (
+    <group position={[POND_X, waterY, POND_Z]}>
+      <mesh geometry={waterGeo} receiveShadow>
+        <meshStandardMaterial
+          color="#1e8fc8"
+          roughness={0.06}
+          metalness={0.45}
+          transparent
+          opacity={0.88}
+        />
+      </mesh>
+      <Sparkles count={32} scale={[26, 0.8, 26]} position={[0, 0.4, 0]} size={2.5} speed={0.12} color="#90dfff" />
+      <pointLight color="#4dd8ff" intensity={22} distance={36} position={[0, 4, 0]} />
+    </group>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 function Terrain({ onGround }: { onGround: (e: ThreeEvent<PointerEvent>) => void }) {
   const geo = useMemo(() => {
@@ -104,12 +157,16 @@ function Terrain({ onGround }: { onGround: (e: ThreeEvent<PointerEvent>) => void
       const x = pos.getX(i), z = pos.getZ(i);
       const h = getHeight(x, z);
       pos.setY(i, h);
-      if (h < 1.6) c.copy(sand);
-      else if (h < 12.5) {
-        // greens everywhere in the playfield
+      // pond shore: vertices dipping into the bowl get a sandy/wet colour
+      const dPond = Math.hypot(x - POND_X, z - POND_Z);
+      const inPond = dPond < POND_R && h < (getHeight(POND_X, POND_Z) + POND_WATER_Y_OFFSET + 0.3);
+      if (inPond) {
+        c.setStyle("#b8c8a0"); // wet muddy shore
+      } else if (h < 1.0) c.copy(sand);
+      else if (h < 5.5) {
         const n = vnoise(x * 0.15, z * 0.15);
         c.lerpColors(grass, n > 0.5 ? grass2 : grass3, n);
-      } else if (h < 17) c.copy(rock);
+      } else if (h < 25) c.copy(rock);
       else c.copy(snow);
       colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
     }
@@ -380,17 +437,26 @@ function Temple() {
           <meshStandardMaterial color={k % 2 ? "#b8ad98" : "#cbc0a8"} flatShading />
         </mesh>
       ))}
-      {/* grand staircase (visual — walkable via templeHeight ramp) */}
-      {Array.from({ length: 12 }, (_, i) => {
-        const t = i / 12;
-        const z = 12.5 - t * (12.5 - 3.2);
-        return (
-          <mesh key={`s${i}`} position={[0, t * topY - 0.15, z]} receiveShadow>
-            <boxGeometry args={[4.8, 0.3, 0.95]} />
-            <meshStandardMaterial color="#d8cdb4" flatShading />
-          </mesh>
-        );
-      })}
+      {/* staircases on all 4 faces */}
+      {[0, 1, 2, 3].flatMap((face) =>
+        Array.from({ length: 12 }, (_, i) => {
+          const t = i / 12;
+          const ramp = 12.5 - t * (12.5 - 3.2);
+          const y = t * topY - 0.15;
+          let pos: [number, number, number];
+          let size: [number, number, number];
+          if (face === 0) { pos = [0, y, ramp]; size = [4.8, 0.3, 0.95]; }       // south
+          else if (face === 1) { pos = [0, y, -ramp]; size = [4.8, 0.3, 0.95]; } // north
+          else if (face === 2) { pos = [ramp, y, 0]; size = [0.95, 0.3, 4.8]; }  // east
+          else { pos = [-ramp, y, 0]; size = [0.95, 0.3, 4.8]; }                 // west
+          return (
+            <mesh key={`s${face}_${i}`} position={pos} receiveShadow>
+              <boxGeometry args={size} />
+              <meshStandardMaterial color="#d8cdb4" flatShading />
+            </mesh>
+          );
+        })
+      )}
       {/* corner pillars on top */}
       {[[-3, -3], [3, -3], [-3, 3], [3, 3]].map(([px, pz], i) => (
         <group key={`p${i}`} position={[px, topY, pz]}>
@@ -564,6 +630,25 @@ function Cart() {
         <octahedronGeometry args={[0.28, 0]} />
         <meshStandardMaterial color="#7cf3c8" emissive="#7cf3c8" emissiveIntensity={1.6} />
       </mesh>
+      <Html center position={[0, 2.6, 0]} distanceFactor={35} occlude={false} zIndexRange={[20, 0]}>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            color: "#fff",
+            background: "rgba(20,16,40,0.78)",
+            border: "2px solid #ffd166",
+            borderRadius: 10,
+            padding: "3px 10px",
+            whiteSpace: "nowrap",
+            textShadow: "0 1px 3px rgba(0,0,0,0.7)",
+            display: worldState.riding ? "none" : "block",
+          }}
+        >
+          🛒 RIDE THE MAGIC CART
+        </div>
+      </Html>
     </group>
   );
 }
@@ -612,6 +697,50 @@ function NameLetters() {
         p.vx += (dx / d) * f * dtc * 8;
         p.vz += (dz / d) * f * dtc * 8;
         p.ry += (dx > 0 ? 1 : -1) * f * dtc * 0.5;
+      }
+      // letter–letter collision
+      for (let j = 0; j < letters.length; j++) {
+        if (j === i) continue;
+        const q = phys.current[j];
+        const ldx = p.x - q.x, ldz = p.z - q.z;
+        const ld = Math.hypot(ldx, ldz);
+        const minL = 1.55; // letter radius sum
+        if (ld < minL && ld > 0.001) {
+          const overlap = (minL - ld) / 2;
+          p.x += (ldx / ld) * overlap;
+          p.z += (ldz / ld) * overlap;
+          q.x -= (ldx / ld) * overlap;
+          q.z -= (ldz / ld) * overlap;
+          // swap velocity along collision axis
+          const nx = ldx / ld, nz = ldz / ld;
+          const rv = (p.vx - q.vx) * nx + (p.vz - q.vz) * nz;
+          if (rv < 0) {
+            p.vx -= rv * nx * 0.7;
+            p.vz -= rv * nz * 0.7;
+            q.vx += rv * nx * 0.7;
+            q.vz += rv * nz * 0.7;
+          }
+        }
+      }
+      // zone building colliders — stop letters going inside structures
+      for (const zone of ZONES) {
+        const bdx = p.x - zone.x, bdz = p.z - zone.z;
+        const bd = Math.hypot(bdx, bdz);
+        if (bd < 4.8 && bd > 0.001) {
+          const push = (4.8 - bd) / bd;
+          p.x += bdx * push; p.z += bdz * push;
+          p.vx *= 0.2; p.vz *= 0.2;
+        }
+      }
+      // temple base collider
+      {
+        const bdx = p.x - TEMPLE.x, bdz = p.z - TEMPLE.z;
+        const bd = Math.hypot(bdx, bdz);
+        if (bd < 11.5 && bd > 0.001) {
+          const push = (11.5 - bd) / bd;
+          p.x += bdx * push; p.z += bdz * push;
+          p.vx *= 0.2; p.vz *= 0.2;
+        }
       }
       // friction + integrate
       const fr = Math.pow(0.14, dtc);
@@ -667,7 +796,7 @@ function Gems() {
       const x = (hash(i, 51) - 0.5) * (WORLD_SIZE - 50);
       const z = (hash(i, 57) - 0.5) * (WORLD_SIZE - 50);
       const h = getHeight(x, z);
-      if (h < 1.8 || h > 10) continue;
+      if (h < 0.8 || h > 5.0) continue;
       // never hide a gem inside a zone plaza, building, or the temple
       if (ZONES.some((zn) => Math.hypot(x - zn.x, z - zn.z) < 8)) continue;
       if (BUILDING_SPOTS.some((b) => Math.hypot(x - b.x, z - b.z) < 5)) continue;
@@ -730,20 +859,54 @@ function Gems() {
 function ZoneMarker({ zone, onZoneClick }: { zone: Zone; onZoneClick: (id: string) => void }) {
   const crystal = useRef<THREE.Mesh>(null);
   const ring = useRef<THREE.Mesh>(null);
+  const nameLabelRef = useRef<HTMLDivElement>(null);
+  const hpFillRef = useRef<HTMLDivElement>(null);
+  const hpTextRef = useRef<HTMLSpanElement>(null);
+  const labelContainerRef = useRef<HTMLDivElement>(null);
   const y = getHeight(zone.x, zone.z);
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
+    const unlocked = worldState.unlockedZones.has(zone.id);
+    const hp = worldState.zoneHP[zone.id] ?? ZONE_MAX_HP;
+    const hpPct = hp / ZONE_MAX_HP;
+
     if (crystal.current) {
       crystal.current.position.y = 3.4 + Math.sin(t * 1.4 + zone.x) * 0.4;
       crystal.current.rotation.y = t * 0.8;
-      // fireball impact reaction — quick decaying shake/scale pulse
       const hitAt = worldState.hitZones[zone.id];
       const age = hitAt ? performance.now() - hitAt : Infinity;
       const shake = age < 350 ? (1 - age / 350) * 0.4 * Math.sin(age * 0.09) : 0;
+      // low HP flicker
+      const flicker = !unlocked && hpPct < 0.3 ? 0.3 + Math.sin(t * 18) * 0.25 : 0;
       crystal.current.scale.set(1 + shake, 1.7 + shake, 1 + shake);
+      const mat = crystal.current.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = unlocked ? 0.55 : 0.12 + flicker;
+      mat.opacity = unlocked ? 0.95 : 0.45 + flicker * 0.5;
     }
     if (ring.current) ring.current.rotation.z = t * 0.5;
+
+    // DOM updates — no React re-render needed
+    if (nameLabelRef.current) {
+      nameLabelRef.current.textContent = unlocked
+        ? `${zone.emoji} ${zone.label.toUpperCase()}`
+        : `🔒 ${zone.label.toUpperCase()}`;
+      nameLabelRef.current.style.color = unlocked ? "#fff" : "#aaa";
+    }
+    if (labelContainerRef.current) {
+      labelContainerRef.current.style.borderColor = unlocked ? zone.color : "#664444";
+      labelContainerRef.current.style.boxShadow = unlocked ? `0 0 18px ${zone.color}66` : "0 0 10px #ff333344";
+    }
+    if (hpFillRef.current) {
+      hpFillRef.current.style.width = unlocked ? "100%" : `${hpPct * 100}%`;
+      hpFillRef.current.style.background = unlocked
+        ? zone.color
+        : hpPct > 0.6 ? "#ff3355" : hpPct > 0.3 ? "#ff8a2a" : "#ffd166";
+    }
+    if (hpTextRef.current) {
+      hpTextRef.current.textContent = unlocked ? "UNLOCKED" : `${hp} / ${ZONE_MAX_HP} HP`;
+      hpTextRef.current.style.color = unlocked ? zone.color : "#cc6666";
+    }
   });
 
   return (
@@ -768,7 +931,7 @@ function ZoneMarker({ zone, onZoneClick }: { zone: Zone; onZoneClick: (id: strin
         position={[0, 3.4, 0]}
         onClick={(e) => {
           e.stopPropagation();
-          onZoneClick(zone.id);
+          if (worldState.unlockedZones.has(zone.id)) onZoneClick(zone.id);
         }}
         onPointerOver={() => {
           document.body.style.cursor = "pointer";
@@ -790,25 +953,44 @@ function ZoneMarker({ zone, onZoneClick }: { zone: Zone; onZoneClick: (id: strin
       </mesh>
       <pointLight color={zone.color} intensity={30} distance={16} position={[0, 4, 0]} />
       <Sparkles count={16} scale={[6, 5, 6]} position={[0, 3, 0]} size={4} speed={0.4} color={zone.color} />
-      <Html center position={[0, 7.2, 0]} distanceFactor={45} occlude={false} zIndexRange={[20, 0]}>
+      <Html center position={[0, 7.6, 0]} distanceFactor={45} occlude={false} zIndexRange={[20, 0]}>
         <div
-          onClick={() => onZoneClick(zone.id)}
+          ref={labelContainerRef}
+          onClick={() => { if (worldState.unlockedZones.has(zone.id)) onZoneClick(zone.id); }}
           style={{
             fontFamily: "var(--font-display)",
-            fontSize: 13,
-            letterSpacing: "0.15em",
-            color: "#fff",
-            background: "rgba(30,22,58,0.75)",
-            border: `2px solid ${zone.color}`,
+            background: "rgba(12,8,28,0.88)",
+            border: "2px solid #664444",
             borderRadius: 12,
-            padding: "6px 14px",
-            whiteSpace: "nowrap",
+            padding: "7px 14px",
+            minWidth: 148,
             cursor: "pointer",
-            textShadow: "0 1px 3px rgba(0,0,0,0.6)",
-            boxShadow: `0 0 18px ${zone.color}66`,
+            textShadow: "0 1px 3px rgba(0,0,0,0.7)",
+            userSelect: "none",
           }}
         >
-          {zone.emoji} {zone.label.toUpperCase()}
+          {/* zone name / lock */}
+          <div
+            ref={nameLabelRef}
+            style={{ fontSize: 12, letterSpacing: "0.15em", color: "#aaa", marginBottom: 6, textAlign: "center" }}
+          >
+            🔒 {zone.label.toUpperCase()}
+          </div>
+          {/* HP bar */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ flex: 1, height: 6, background: "#1a0a0a", borderRadius: 3, overflow: "hidden" }}>
+              <div
+                ref={hpFillRef}
+                style={{ height: "100%", width: "100%", background: "#ff3355", borderRadius: 3, transition: "width 0.2s" }}
+              />
+            </div>
+            <span
+              ref={hpTextRef}
+              style={{ fontSize: 9, letterSpacing: "0.1em", color: "#cc6666", minWidth: 52, textAlign: "right" }}
+            >
+              {ZONE_MAX_HP} / {ZONE_MAX_HP} HP
+            </span>
+          </div>
         </div>
       </Html>
     </group>
@@ -827,6 +1009,8 @@ function Player({ active }: { active: boolean }) {
   const legR = useRef<THREE.Mesh>(null);
   const hat = useRef<THREE.Mesh>(null);
   const walk = useRef(0);
+  const smoothCamY = useRef<number | null>(null);
+  const smoothPlayerY = useRef<number | null>(null);
 
   // priority -1: runs before the Cart's frame callback so the cart never
   // reads a stale player position (that one-frame lag caused visible jitter)
@@ -923,7 +1107,10 @@ function Player({ active }: { active: boolean }) {
 
     const groundY = getGroundY(worldState.x, worldState.z);
     const rideY = worldState.riding ? 1.1 : 0;
-    group.current.position.set(worldState.x, groundY + worldState.jumpY + rideY, worldState.z);
+    // lerp player Y so stair-tier transitions are smooth (no snap)
+    if (smoothPlayerY.current === null) smoothPlayerY.current = groundY;
+    else smoothPlayerY.current += (groundY - smoothPlayerY.current) * Math.min(1, dtc * 14);
+    group.current.position.set(worldState.x, smoothPlayerY.current + worldState.jumpY + rideY, worldState.z);
 
     // smooth shortest-arc rotation
     let diff = worldState.rot - group.current.rotation.y;
@@ -954,8 +1141,11 @@ function Player({ active }: { active: boolean }) {
     const camH = 9 + worldState.camPitch;
     const cx = worldState.x + Math.sin(yaw) * camDist;
     const cz = worldState.z + Math.cos(yaw) * camDist;
-    const cy = Math.max(groundY + camH, getGroundY(cx, cz) + 3);
-    camera.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dtc * 4));
+    const cyTarget = Math.max(groundY + camH, getGroundY(cx, cz) + 3);
+    // smooth camera Y independently to avoid stair-step jumps
+    if (smoothCamY.current === null) smoothCamY.current = cyTarget;
+    else smoothCamY.current += (cyTarget - smoothCamY.current) * Math.min(1, dtc * 3.5);
+    camera.position.lerp(new THREE.Vector3(cx, smoothCamY.current, cz), Math.min(1, dtc * 5));
     camera.lookAt(worldState.x, groundY + 2 + worldState.jumpY, worldState.z);
   }, -1);
 
@@ -1126,6 +1316,16 @@ const Combat = forwardRef<CombatHandle>(function Combat(_props, ref) {
       if (p >= 1) {
         s.active = false;
         worldState.hitZones[s.zoneId] = performance.now();
+        if (!worldState.unlockedZones.has(s.zoneId)) {
+          const prevHP = worldState.zoneHP[s.zoneId] ?? ZONE_MAX_HP;
+          const newHP = Math.max(0, prevHP - 1);
+          worldState.zoneHP[s.zoneId] = newHP;
+          window.dispatchEvent(new CustomEvent("zone-hit", { detail: { id: s.zoneId, hp: newHP } }));
+          if (newHP <= 0) {
+            worldState.unlockedZones.add(s.zoneId);
+            window.dispatchEvent(new CustomEvent("zone-unlocked", { detail: s.zoneId }));
+          }
+        }
       }
     });
   });
@@ -1195,6 +1395,20 @@ function MouseLook({
     };
     window.addEventListener("mousemove", onMove);
 
+    const doFire = () => {
+      if (!active) return;
+      const lockTarget = findLockTarget(camera);
+      if (lockTarget) {
+        if (worldState.unlockedZones.has(lockTarget.id)) {
+          onFire(lockTarget); sound.click();
+          setTimeout(() => onZoneClick(lockTarget.id), 480);
+        } else {
+          onFire(lockTarget); sound.click();
+        }
+      }
+    };
+    window.addEventListener("mobile-fire", doFire as EventListener);
+
     const onDown = (e: MouseEvent) => {
       if (!worldState.locked) {
         if (e.target === canvas && active) {
@@ -1207,23 +1421,28 @@ function MouseLook({
         return;
       }
       if (!active) return;
-      // auto-lock: a zone roughly centered in view is cast at with a fireball first
+      // auto-lock: fire fireball at a zone in view
       const lockTarget = findLockTarget(camera);
       if (lockTarget) {
-        onFire(lockTarget);
-        sound.click();
-        setTimeout(() => onZoneClick(lockTarget.id), 480);
+        if (worldState.unlockedZones.has(lockTarget.id)) {
+          // already unlocked — open panel (fireball is just flavor)
+          onFire(lockTarget);
+          sound.click();
+          setTimeout(() => onZoneClick(lockTarget.id), 480);
+        } else {
+          // first destroy: fire fireball, unlock on impact, don't open panel
+          onFire(lockTarget);
+          sound.click();
+        }
         return;
       }
-      // raycast from screen center (crosshair style)
+      // raycast crystals only (terrain click-to-move removed)
       raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
       const hits = raycaster.intersectObjects(scene.children, true);
       for (const hit of hits) {
         const zid = hit.object.userData?.zoneId;
-        if (zid) { onZoneClick(zid); sound.click(); return; }
-        if (hit.object.name === "terrain") {
-          worldState.target = { x: hit.point.x, z: hit.point.z };
-          sound.click();
+        if (zid) {
+          if (worldState.unlockedZones.has(zid)) { onZoneClick(zid); sound.click(); }
           return;
         }
       }
@@ -1234,10 +1453,103 @@ function MouseLook({
       document.removeEventListener("pointerlockchange", onLockChange);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mobile-fire", doFire as EventListener);
     };
   }, [gl, camera, scene, raycaster, active, onZoneClick, onFire]);
 
   return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Enemy counter-shots — locked zone crystals fire back at the player  */
+/* ------------------------------------------------------------------ */
+const ENEMY_POOL = 12;
+
+function EnemyShots() {
+  const slots = useRef(
+    Array.from({ length: ENEMY_POOL }, () => ({
+      active: false,
+      x: 0, y: 0, z: 0,
+      tx: 0, ty: 0, tz: 0,
+      t: 0, dur: 0.7,
+    }))
+  );
+  const meshRefs = useRef<THREE.Mesh[]>([]);
+  const lastFire = useRef<Record<string, number>>({});
+  const startTime = useRef(performance.now());
+
+  useFrame((_, dt) => {
+    const now = performance.now();
+
+    // each locked zone fires at player if in range
+    for (const zone of ZONES) {
+      if (worldState.unlockedZones.has(zone.id)) continue;
+      const dist = Math.hypot(worldState.x - zone.x, worldState.z - zone.z);
+      if (dist > 38 || dist < 4) continue;
+      // 12s grace period after spawn/respawn before zones start firing
+      if (now - startTime.current < 12000) continue;
+      const last = lastFire.current[zone.id] ?? 0;
+      if (now - last < 4500) continue;
+      lastFire.current[zone.id] = now;
+      const slot = slots.current.find((s) => !s.active) ?? slots.current[0];
+      slot.active = true;
+      slot.x = zone.x;
+      slot.y = getHeight(zone.x, zone.z) + 3.4;
+      slot.z = zone.z;
+      slot.tx = worldState.x;
+      slot.ty = getGroundY(worldState.x, worldState.z) + 1.2;
+      slot.tz = worldState.z;
+      slot.t = 0;
+      slot.dur = 0.9 + dist * 0.012; // slower = more avoidable
+    }
+
+    // advance shots
+    slots.current.forEach((s, i) => {
+      const m = meshRefs.current[i];
+      if (!s.active) { if (m) m.visible = false; return; }
+      s.t += dt;
+      const p = Math.min(1, s.t / s.dur);
+      if (m) {
+        m.visible = true;
+        m.position.set(
+          THREE.MathUtils.lerp(s.x, s.tx, p),
+          THREE.MathUtils.lerp(s.y, s.ty, p) + Math.sin(p * Math.PI) * 4.5,
+          THREE.MathUtils.lerp(s.z, s.tz, p)
+        );
+        m.rotation.y += dt * 10;
+        m.rotation.x += dt * 7;
+      }
+      if (p >= 1) {
+        s.active = false;
+        // hit if player hasn't moved far from the targeted position
+        if (Math.hypot(worldState.x - s.tx, worldState.z - s.tz) < 3.5) {
+          worldState.playerHP = Math.max(0, worldState.playerHP - 1);
+          sound.damage();
+          window.dispatchEvent(new CustomEvent("player-hit", { detail: worldState.playerHP }));
+          if (worldState.playerHP <= 0) {
+            // respawn
+            worldState.x = 0; worldState.z = 38;
+            worldState.jumpY = 0; worldState.jumpVel = 0;
+            worldState.riding = false; worldState.keys.clear(); worldState.target = null;
+            worldState.playerHP = worldState.playerMaxHP;
+            startTime.current = performance.now(); // reset grace period on respawn
+            window.dispatchEvent(new CustomEvent("player-died"));
+          }
+        }
+      }
+    });
+  });
+
+  return (
+    <group>
+      {slots.current.map((_, i) => (
+        <mesh key={i} ref={(el) => { if (el) meshRefs.current[i] = el; }} visible={false}>
+          <sphereGeometry args={[0.7, 8, 8]} />
+          <meshStandardMaterial color="#ff2244" emissive="#ff0022" emissiveIntensity={3} />
+        </mesh>
+      ))}
+    </group>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -1257,10 +1569,8 @@ function SceneContents({
     scene.fog = new THREE.Fog("#a6dcff", 60, 170);
   }, [scene]);
 
-  const onGround = (e: ThreeEvent<PointerEvent>) => {
-    if (!active || worldState.locked) return;
-    worldState.target = { x: e.point.x, z: e.point.z };
-    sound.click();
+  const onGround = (_e: ThreeEvent<PointerEvent>) => {
+    // click-to-move removed — use WASD only
   };
 
   return (
@@ -1277,6 +1587,7 @@ function SceneContents({
         shadow-camera-top={90}
         shadow-camera-bottom={-90}
       />
+      <Pond />
       <Terrain onGround={onGround} />
       <Props />
       <Buildings />
@@ -1294,6 +1605,7 @@ function SceneContents({
       <Player active={active} />
       <ProximitySensor onNear={onNear} />
       <Combat ref={combatRef} />
+      <EnemyShots />
       <MouseLook
         active={active}
         onZoneClick={onZoneClick}
