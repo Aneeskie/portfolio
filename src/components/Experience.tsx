@@ -40,6 +40,46 @@ function ServicesAndTools() {
   );
 }
 
+const CONFETTI_COLORS = ["#ff70a6", "#ffd166", "#7cf3c8", "#6ec6ff", "#c77dff"];
+
+/** DOM confetti burst — fires once per "goal-scored" event from the World. */
+function Confetti() {
+  const [burstId, setBurstId] = useState(0);
+
+  useEffect(() => {
+    const onGoal = () => setBurstId((v) => v + 1);
+    window.addEventListener("goal-scored", onGoal);
+    return () => window.removeEventListener("goal-scored", onGoal);
+  }, []);
+
+  if (!burstId) return null;
+  return (
+    <div key={burstId} className="fixed inset-0 z-[95] pointer-events-none overflow-hidden">
+      {Array.from({ length: 46 }, (_, i) => {
+        const left = Math.random() * 100;
+        const delay = Math.random() * 0.3;
+        const dur = 1.2 + Math.random() * 0.9;
+        const rot = Math.random() * 360;
+        return (
+          <span
+            key={i}
+            style={{
+              position: "absolute",
+              top: "-6%",
+              left: `${left}%`,
+              width: 8,
+              height: 14,
+              background: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+              opacity: 0.9,
+              transform: `rotate(${rot}deg)`,
+              animation: `confetti-fall ${dur}s ${delay}s ease-in forwards`,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Experience() {
   const [started, setStarted] = useState(false);
@@ -209,6 +249,7 @@ export default function Experience() {
         )}
       </AnimatePresence>
 
+      <Confetti />
       <div className="vignette" aria-hidden />
     </>
   );

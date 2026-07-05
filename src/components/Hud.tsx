@@ -8,16 +8,38 @@ import { sound } from "@/lib/sound";
 
 function Minimap({ onNav }: { onNav: (id: string) => void }) {
   const dot = useRef<HTMLDivElement>(null);
+  const gemLayer = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // build gem dots once the world has published spawn spots
+    const buildGems = () => {
+      if (!gemLayer.current || !worldState.gemSpots.length) return false;
+      gemLayer.current.innerHTML = "";
+      worldState.gemSpots.forEach((s) => {
+        const d = document.createElement("div");
+        d.style.cssText = `position:absolute;width:5px;height:5px;border-radius:9999px;background:#ffd166;box-shadow:0 0 4px #ffd166;transform:translate(-50%,-50%);left:${(s.x / WORLD_SIZE + 0.5) * 100}%;top:${(s.z / WORLD_SIZE + 0.5) * 100}%`;
+        gemLayer.current!.appendChild(d);
+      });
+      return true;
+    };
+    let built = buildGems();
+
     let raf = 0;
     const loop = () => {
+      if (!built) built = buildGems();
       if (dot.current) {
         const px = (worldState.x / WORLD_SIZE + 0.5) * 100;
         const pz = (worldState.z / WORLD_SIZE + 0.5) * 100;
         dot.current.style.left = `${px}%`;
         dot.current.style.top = `${pz}%`;
         dot.current.style.transform = `translate(-50%, -50%) rotate(${worldState.rot}rad)`;
+      }
+      // hide collected gems
+      if (gemLayer.current) {
+        const kids = gemLayer.current.children;
+        for (let i = 0; i < kids.length; i++) {
+          (kids[i] as HTMLElement).style.display = worldState.gemTaken[i] ? "none" : "";
+        }
       }
       raf = requestAnimationFrame(loop);
     };
@@ -28,6 +50,8 @@ function Minimap({ onNav }: { onNav: (id: string) => void }) {
   return (
     <div className="glass rounded-full h-32 w-32 md:h-40 md:w-40 relative overflow-hidden border-2 border-[var(--glass-border)]">
       <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, #3f7a4a 0%, #35664c 60%, #2a4d59 100%)" }} />
+      {/* gem dots */}
+      <div ref={gemLayer} className="absolute inset-0 pointer-events-none" />
       {ZONES.map((z) => (
         <button
           key={z.id}
@@ -96,9 +120,24 @@ export default function Hud({
         <div className="glass panel-clip px-4 py-2 font-display text-xs md:text-sm font-bold tracking-[0.25em] text-white pointer-events-auto">
           ⚔️ SKC<span className="text-[var(--purple)]">//</span>QUEST
         </div>
-        <div className="flex items-center gap-2 pointer-events-auto">
-          <div className="glass panel-clip px-4 py-2 font-display text-[11px] tracking-[0.2em] text-[var(--orange)]">
-            💎 {gems} / 24
+        {/* vertical stack so chips never overlap each other */}
+        <div className="flex flex-col items-end gap-2 pointer-events-auto">
+          <div className="flex items-center gap-2">
+            <div className="glass panel-clip px-4 py-2 font-display text-[11px] tracking-[0.2em] text-[var(--orange)]">
+              💎 {gems} / 24
+            </div>
+            <button
+              onClick={() => {
+                const next = !muted;
+                setMuted(next);
+                sound.setEnabled(!next);
+                if (!next) sound.click();
+              }}
+              onMouseEnter={() => sound.hover()}
+              className="glass panel-clip px-4 py-2 font-display text-[10px] tracking-[0.2em] text-[var(--dim)] hover:text-white transition-colors"
+            >
+              {muted ? "🔇 OFF" : "🔊 ON"}
+            </button>
           </div>
           {near && (
             <div
@@ -108,18 +147,6 @@ export default function Hud({
               📍 {near.label.toUpperCase()}
             </div>
           )}
-          <button
-            onClick={() => {
-              const next = !muted;
-              setMuted(next);
-              sound.setEnabled(!next);
-              if (!next) sound.click();
-            }}
-            onMouseEnter={() => sound.hover()}
-            className="glass panel-clip px-4 py-2 font-display text-[10px] tracking-[0.2em] text-[var(--dim)] hover:text-white transition-colors"
-          >
-            {muted ? "🔇 OFF" : "🔊 ON"}
-          </button>
         </div>
       </motion.header>
 
